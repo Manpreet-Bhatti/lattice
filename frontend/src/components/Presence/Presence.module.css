@@ -1,0 +1,49 @@
+.presenceBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--lattice-bg-surface);
+  border-bottom: 1px solid var(--lattice-border);
+}
+
+.userList {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--lattice-text-muted);
+}
+
+.user.isYou {
+  color: var(--lattice-text);
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.name {
+  font-weight: 500;
+}
+
+.youBadge {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--lattice-text-dim);
+  font-weight: 400;
+}
+
+.userCount {
+  font-size: 12px;
+  color: var(--lattice-text-dim);
+}
