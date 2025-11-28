@@ -1,0 +1,127 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--lattice-bg-deep);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 1px;
+  background: var(--lattice-border);
+}
+
+.editorPane {
+  flex: 1;
+  display: flex;
+  padding: 16px;
+  background: var(--lattice-bg-deep);
+  min-width: 0;
+}
+
+.sidebar {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--lattice-border);
+  overflow-y: auto;
+}
+
+.panel {
+  padding: 16px;
+  background: var(--lattice-bg-deep);
+}
+
+.panelTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lattice-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.messageLog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.emptyState {
+  font-size: 13px;
+  color: var(--lattice-text-dim);
+  line-height: 1.5;
+}
+
+.message {
+  padding: 8px 10px;
+  background: var(--lattice-bg-surface);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lattice-text-muted);
+  word-break: break-all;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.infoLabel {
+  font-size: 12px;
+  color: var(--lattice-text-dim);
+}
+
+.infoValue {
+  font-size: 13px;
+  color: var(--lattice-text);
+}
+
+.shareBox {
+  padding: 12px;
+  background: var(--lattice-bg-surface);
+  border: 1px solid var(--lattice-border);
+  border-radius: 8px;
+}
+
+.shareLabel {
+  font-size: 12px;
+  color: var(--lattice-text-dim);
+  margin-bottom: 8px;
+}
+
+.shareUrl {
+  display: block;
+  padding: 8px;
+  background: var(--lattice-bg);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--lattice-accent-light);
+  word-break: break-all;
+  user-select: all;
+}
+
+@media (max-width: 900px) {
+  .main {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .panel {
+    flex: 1;
+    min-width: 280px;
+  }
+}
