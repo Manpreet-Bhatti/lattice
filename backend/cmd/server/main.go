@@ -20,7 +20,6 @@ func main() {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Enable CORS for development
 	handler := corsMiddleware(http.DefaultServeMux)
 
 	log.Println("🔷 Lattice server starting on :8080")
