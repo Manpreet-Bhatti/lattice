@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Lattice color palette - crystalline indigo */
+  --lattice-bg-deep: #0a0a0f;
+  --lattice-bg: #0f0f1a;
+  --lattice-bg-elevated: #161625;
+  --lattice-bg-surface: #1e1e32;
+  
+  --lattice-border: #2a2a45;
+  --lattice-border-focus: #4f46e5;
+  
+  --lattice-primary: #4f46e5;
+  --lattice-primary-light: #6366f1;
+  --lattice-primary-glow: rgba(79, 70, 229, 0.3);
+  
+  --lattice-accent: #7c3aed;
+  --lattice-accent-light: #a78bfa;
+  
+  --lattice-success: #10b981;
+  --lattice-warning: #f59e0b;
+  --lattice-error: #ef4444;
+  
+  --lattice-text: #e2e8f0;
+  --lattice-text-muted: #94a3b8;
+  --lattice-text-dim: #64748b;
+  
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--lattice-bg-deep);
+  color: var(--lattice-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(79, 70, 229, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 70, 229, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+code, pre {
+  font-family: var(--font-mono);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--lattice-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--lattice-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--lattice-text-dim);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--lattice-border-focus);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--lattice-primary-glow);
+  color: var(--lattice-text);
+}
+
