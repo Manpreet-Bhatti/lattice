@@ -27,6 +27,10 @@
   font-size: 13px;
 }
 
+.lineNumber.dimmed {
+  opacity: 0.3;
+}
+
 .textarea {
   flex: 1;
   padding: 16px;
