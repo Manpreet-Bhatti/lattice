@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { Presence } from "./components/Presence";
 import { Editor } from "./components/Editor";
-import { useWebSocket } from "./hooks/useWebSocket";
+import { useLattice } from "./hooks/useLattice";
 import styles from "./App.module.css";
 
 function getInitialRoomId(): string {
@@ -12,105 +12,96 @@ function getInitialRoomId(): string {
   );
 }
 
-function generateUser() {
-  const colors = [
-    "#10b981",
-    "#f59e0b",
-    "#ef4444",
-    "#3b82f6",
-    "#8b5cf6",
-    "#ec4899",
-  ];
-  const adjectives = ["Swift", "Clever", "Bright", "Quick", "Sharp", "Keen"];
-  const animals = ["Fox", "Owl", "Hawk", "Wolf", "Bear", "Lion"];
-
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const animal = animals[Math.floor(Math.random() * animals.length)];
-  const color = colors[Math.floor(Math.random() * colors.length)];
-
-  return {
-    id: Math.random().toString(36).substring(2, 9),
-    name: `${adjective}${animal}`,
-    color,
-    isYou: true,
-  };
-}
-
 function App() {
   const [roomId] = useState(getInitialRoomId);
-  const [currentUser] = useState(generateUser);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [content, setContent] = useState("");
+  const [syncStatus, setSyncStatus] = useState<string>("waiting");
+  const isLocalChangeRef = useRef(false);
 
-  const handleMessage = useCallback((data: ArrayBuffer) => {
-    const decoder = new TextDecoder();
-    const message = decoder.decode(data);
+  const {
+    status,
+    synced,
+    users,
+    getText,
+    setText,
+    onTextChange,
+    updateCursor,
+    userInfo,
+  } = useLattice({ roomId });
 
-    setMessages((prev) => [...prev.slice(-9), `Received: ${message}`]);
+  useEffect(() => {
+    const unsubscribe = onTextChange((newText) => {
+      if (!isLocalChangeRef.current) {
+        setContent(newText);
+      }
+      isLocalChangeRef.current = false;
+    });
 
-    console.log("🔷 Received message:", message);
-  }, []);
+    return unsubscribe;
+  }, [onTextChange]);
 
-  const { status, lastPong, send, ping, isConnected } = useWebSocket({
-    roomId,
-    onMessage: handleMessage,
-    onStatusChange: (newStatus) => {
-      console.log("🔷 Connection status:", newStatus);
-    },
-  });
-
-  const handlePing = () => {
-    if (ping()) {
-      setMessages((prev) => [...prev.slice(-9), "Sent: ping"]);
+  // Update sync status display
+  useEffect(() => {
+    if (status === "connecting") {
+      setSyncStatus("connecting...");
+    } else if (status === "connected" && !synced) {
+      setSyncStatus("syncing...");
+    } else if (status === "connected" && synced) {
+      setSyncStatus("synced");
+    } else {
+      setSyncStatus("offline");
     }
+  }, [status, synced]);
+
+  // Initialize content when synced
+  useEffect(() => {
+    if (synced) {
+      const text = getText();
+      if (text) {
+        setContent(text);
+      }
+    }
+  }, [synced, getText]);
+
+  const handleEditorChange = (newContent: string) => {
+    isLocalChangeRef.current = true;
+    setContent(newContent);
+    setText(newContent);
   };
 
-  const handleEditorChange = (content: string) => {
-    if (isConnected && content.length < 100) {
-      const encoder = new TextEncoder();
-      send(encoder.encode(content));
-    }
+  const handleSelectionChange = (start: number, end: number) => {
+    updateCursor(start, end);
   };
-
-  const users = [
-    currentUser,
-    // Simulated other users for visual demo
-    // { id: '2', name: 'CleverOwl', color: '#f59e0b' },
-    // { id: '3', name: 'SwiftHawk', color: '#3b82f6' },
-  ];
 
   return (
     <div className={styles.app}>
-      <Toolbar
-        roomId={roomId}
-        connectionStatus={status}
-        onPing={handlePing}
-        lastPong={lastPong}
-      />
+      <Toolbar roomId={roomId} connectionStatus={status} />
 
       <Presence users={users} />
 
       <main className={styles.main}>
         <div className={styles.editorPane}>
-          <Editor onChange={handleEditorChange} />
+          <Editor
+            content={content}
+            onChange={handleEditorChange}
+            onSelectionChange={handleSelectionChange}
+          />
         </div>
 
         <aside className={styles.sidebar}>
           <div className={styles.panel}>
-            <h3 className={styles.panelTitle}>WebSocket Messages</h3>
-            <div className={styles.messageLog}>
-              {messages.length === 0 ? (
-                <p className={styles.emptyState}>
-                  No messages yet. Click "Ping" to test the connection, or open
-                  this page in another tab to test real-time sync.
-                </p>
-              ) : (
-                messages.map((msg, i) => (
-                  <div key={i} className={styles.message}>
-                    {msg}
-                  </div>
-                ))
-              )}
+            <h3 className={styles.panelTitle}>Sync Status</h3>
+            <div className={styles.statusDisplay}>
+              <div
+                className={`${styles.statusIndicator} ${styles[syncStatus.replace("...", "")]}`}
+              />
+              <span className={styles.statusText}>{syncStatus}</span>
             </div>
+            <p className={styles.syncInfo}>
+              {synced
+                ? "Document is synchronized across all clients. Changes are instantly shared."
+                : "Waiting for initial sync with server..."}
+            </p>
           </div>
 
           <div className={styles.panel}>
@@ -120,10 +111,18 @@ function App() {
               <code className={styles.infoValue}>{roomId}</code>
 
               <span className={styles.infoLabel}>Your Name</span>
-              <span className={styles.infoValue}>{currentUser.name}</span>
+              <span className={styles.infoValue}>{userInfo.name}</span>
 
-              <span className={styles.infoLabel}>Status</span>
-              <span className={styles.infoValue}>{status}</span>
+              <span className={styles.infoLabel}>Your Color</span>
+              <span
+                className={styles.infoValue}
+                style={{ color: userInfo.color }}
+              >
+                ● {userInfo.color}
+              </span>
+
+              <span className={styles.infoLabel}>Users Online</span>
+              <span className={styles.infoValue}>{users.length}</span>
             </div>
 
             <div className={styles.shareBox}>
@@ -133,6 +132,24 @@ function App() {
               <code className={styles.shareUrl}>
                 {window.location.origin}?room={roomId}
               </code>
+            </div>
+          </div>
+
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>How It Works</h3>
+            <div className={styles.howItWorks}>
+              <p>
+                <strong>CRDT-powered sync:</strong> Changes are merged using
+                Conflict-free Replicated Data Types (CRDTs).
+              </p>
+              <p>
+                <strong>No conflicts:</strong> Even if two users edit the same
+                line simultaneously, changes merge deterministically.
+              </p>
+              <p>
+                <strong>Offline support:</strong> Changes queue locally and sync
+                when reconnected.
+              </p>
             </div>
           </div>
         </aside>
