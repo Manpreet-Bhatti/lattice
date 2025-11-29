@@ -1,19 +1,12 @@
 import styles from "./Toolbar.module.css";
-import type { ConnectionStatus } from "../../hooks/useWebSocket";
+import type { ConnectionStatus } from "../../crdt";
 
 interface ToolbarProps {
   roomId: string;
   connectionStatus: ConnectionStatus;
-  onPing?: () => void;
-  lastPong?: Date | null;
 }
 
-export function Toolbar({
-  roomId,
-  connectionStatus,
-  onPing,
-  lastPong,
-}: ToolbarProps) {
+export function Toolbar({ roomId, connectionStatus }: ToolbarProps) {
   const statusConfig = {
     connecting: { label: "Connecting...", color: "var(--lattice-warning)" },
     connected: { label: "Connected", color: "var(--lattice-success)" },
@@ -78,19 +71,6 @@ export function Toolbar({
       </div>
 
       <div className={styles.actions}>
-        <button
-          className={styles.pingButton}
-          onClick={onPing}
-          disabled={connectionStatus !== "connected"}
-          title={
-            lastPong
-              ? `Last pong: ${lastPong.toLocaleTimeString()}`
-              : "Send ping"
-          }
-        >
-          Ping
-        </button>
-
         <div className={styles.status}>
           <span
             className={styles.statusDot}
