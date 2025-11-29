@@ -30,7 +30,7 @@ func (r *Room) AddUpdate(update []byte) {
 func (r *Room) GetUpdates() [][]byte {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	// Return a copy to avoid race conditions
+
 	updates := make([][]byte, len(r.Updates))
 	copy(updates, r.Updates)
 	return updates
