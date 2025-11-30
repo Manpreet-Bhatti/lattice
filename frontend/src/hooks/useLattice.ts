@@ -8,6 +8,7 @@ interface User {
   name: string;
   color: string;
   isYou?: boolean;
+  isTyping?: boolean;
 }
 
 interface UseLatticeOptions {
@@ -16,7 +17,6 @@ interface UseLatticeOptions {
   userColor?: string;
 }
 
-// Generate random user data
 function generateUserInfo() {
   const colors = [
     "#10b981",
@@ -76,8 +76,8 @@ export function useLattice(options: UseLatticeOptions) {
   const docRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<LatticeProvider | null>(null);
   const textRef = useRef<Y.Text | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
 
-  // Initialize Yjs document and provider
   useEffect(() => {
     const doc = new Y.Doc();
     const text = doc.getText("content");
@@ -85,33 +85,28 @@ export function useLattice(options: UseLatticeOptions) {
     docRef.current = doc;
     textRef.current = text;
 
-    // Create WebSocket URL
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = import.meta.env.VITE_WS_HOST || window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
-    // Create provider
     const provider = new LatticeProvider(wsUrl, roomId, doc);
     providerRef.current = provider;
 
-    // Set local awareness state
     provider.awareness.setLocalState({
       user: userInfo,
+      isTyping: false,
     });
 
-    // Listen for status changes
     const handleStatus = (newStatus: ConnectionStatus) => {
       setStatus(newStatus);
     };
     provider.on("status", handleStatus);
 
-    // Listen for sync status
     const handleSynced = (isSynced: boolean) => {
       setSynced(isSynced);
     };
     provider.on("synced", handleSynced);
 
-    // Listen for awareness changes
     const handleAwarenessChange = () => {
       const states = provider.awareness.getStates();
       const userList: User[] = [];
@@ -124,11 +119,11 @@ export function useLattice(options: UseLatticeOptions) {
             name: state.user.name,
             color: state.user.color,
             isYou: clientID === doc.clientID,
+            isTyping: state.isTyping || false,
           });
         }
       });
 
-      // Sort so current user is first
       userList.sort((a, b) => {
         if (a.isYou) return -1;
         if (b.isYou) return 1;
@@ -139,10 +134,27 @@ export function useLattice(options: UseLatticeOptions) {
     };
 
     provider.awareness.on("change", handleAwarenessChange);
-
     handleAwarenessChange();
 
+    const handleTextChange = () => {
+      provider.awareness.setLocalStateField("isTyping", true);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = window.setTimeout(() => {
+        provider.awareness.setLocalStateField("isTyping", false);
+      }, 2000);
+    };
+
+    text.observe(handleTextChange);
+
     return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      text.unobserve(handleTextChange);
       provider.off("status", handleStatus);
       provider.off("synced", handleSynced);
       provider.awareness.off("change", handleAwarenessChange);
@@ -151,22 +163,18 @@ export function useLattice(options: UseLatticeOptions) {
     };
   }, [roomId, userInfo]);
 
-  // Get the current text content
   const getText = useCallback((): string => {
     return textRef.current?.toString() || "";
   }, []);
 
-  // Insert text at a position
   const insertText = useCallback((index: number, text: string): void => {
     textRef.current?.insert(index, text);
   }, []);
 
-  // Delete text at a position
   const deleteText = useCallback((index: number, length: number): void => {
     textRef.current?.delete(index, length);
   }, []);
 
-  // Replace all text
   const setText = useCallback((text: string): void => {
     const ytext = textRef.current;
     if (ytext) {
@@ -175,7 +183,6 @@ export function useLattice(options: UseLatticeOptions) {
     }
   }, []);
 
-  // Subscribe to text changes
   const onTextChange = useCallback(
     (callback: (text: string) => void): (() => void) => {
       const ytext = textRef.current;
@@ -191,7 +198,6 @@ export function useLattice(options: UseLatticeOptions) {
     []
   );
 
-  // Update cursor position in awareness
   const updateCursor = useCallback((anchor: number, head: number): void => {
     providerRef.current?.awareness.setLocalStateField("cursor", {
       anchor,
@@ -200,26 +206,19 @@ export function useLattice(options: UseLatticeOptions) {
   }, []);
 
   return {
-    // State
     status,
     synced,
     users,
     isConnected: status === "connected",
-
-    // Document
     doc: docRef.current,
     yText: textRef.current,
     provider: providerRef.current,
     awareness: providerRef.current?.awareness || null,
-
-    // Text operations (for non-CodeMirror use)
     getText,
     setText,
     insertText,
     deleteText,
     onTextChange,
-
-    // Awareness
     updateCursor,
     userInfo,
   };
