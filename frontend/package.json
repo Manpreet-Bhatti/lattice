@@ -10,10 +10,28 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "@codemirror/autocomplete": "^6.12.0",
+        "@codemirror/commands": "^6.3.3",
+        "@codemirror/lang-cpp": "^6.0.2",
+        "@codemirror/lang-css": "^6.2.1",
+        "@codemirror/lang-go": "^6.0.0",
+        "@codemirror/lang-html": "^6.4.8",
+        "@codemirror/lang-java": "^6.0.1",
+        "@codemirror/lang-javascript": "^6.2.1",
+        "@codemirror/lang-json": "^6.0.1",
+        "@codemirror/lang-markdown": "^6.2.4",
+        "@codemirror/lang-python": "^6.1.4",
+        "@codemirror/lang-rust": "^6.0.1",
+        "@codemirror/lang-sql": "^6.5.5",
+        "@codemirror/language": "^6.10.1",
+        "@codemirror/search": "^6.5.5",
+        "@codemirror/state": "^6.4.0",
+        "@codemirror/view": "^6.23.0",
+        "lib0": "^0.2.88",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
-        "yjs": "^13.6.10",
-        "lib0": "^0.2.88"
+        "y-codemirror.next": "^0.3.2",
+        "yjs": "^13.6.10"
     },
     "devDependencies": {
         "@types/react": "^18.2.43",
