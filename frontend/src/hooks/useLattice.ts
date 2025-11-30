@@ -62,7 +62,6 @@ function generateUserInfo() {
 export function useLattice(options: UseLatticeOptions) {
   const { roomId } = options;
 
-  // Generate stable user info
   const userInfo = useMemo(() => {
     return {
       name: options.userName || generateUserInfo().name,
@@ -209,10 +208,11 @@ export function useLattice(options: UseLatticeOptions) {
 
     // Document
     doc: docRef.current,
-    text: textRef.current,
+    yText: textRef.current,
     provider: providerRef.current,
+    awareness: providerRef.current?.awareness || null,
 
-    // Text operations
+    // Text operations (for non-CodeMirror use)
     getText,
     setText,
     insertText,
