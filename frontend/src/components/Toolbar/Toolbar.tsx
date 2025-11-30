@@ -33,8 +33,8 @@ export function Toolbar({ roomId, connectionStatus }: ToolbarProps) {
               x2="100%"
               y2="100%"
             >
-              <stop offset="0%" style={{ stopColor: "#4F46E5" }} />
-              <stop offset="100%" style={{ stopColor: "#7C3AED" }} />
+              <stop offset="0%" style={{ stopColor: "#ffb7c5" }} />
+              <stop offset="100%" style={{ stopColor: "#ff8fa3" }} />
             </linearGradient>
           </defs>
           <g

@@ -1,32 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 :root {
-  /* Lattice color palette - crystalline indigo */
-  --lattice-bg-deep: #0a0a0f;
-  --lattice-bg: #0f0f1a;
-  --lattice-bg-elevated: #161625;
-  --lattice-bg-surface: #1e1e32;
-  
-  --lattice-border: #2a2a45;
-  --lattice-border-focus: #4f46e5;
-  
-  --lattice-primary: #4f46e5;
-  --lattice-primary-light: #6366f1;
-  --lattice-primary-glow: rgba(79, 70, 229, 0.3);
-  
-  --lattice-accent: #7c3aed;
-  --lattice-accent-light: #a78bfa;
-  
+  --lattice-bg-deep: #0a0a0c;
+  --lattice-bg: #0f0f12;
+  --lattice-bg-elevated: #161619;
+  --lattice-bg-surface: #1e1e22;
+
+  --lattice-border: #2a2a30;
+  --lattice-border-focus: #ffb7c5;
+
+  --lattice-primary: #ffb7c5;
+  --lattice-primary-light: #ffd1db;
+  --lattice-primary-glow: rgba(255, 183, 197, 0.3);
+
+  --lattice-accent: #ff8fa3;
+  --lattice-accent-light: #ffccd5;
+
   --lattice-success: #10b981;
   --lattice-warning: #f59e0b;
   --lattice-error: #ef4444;
-  
+
   --lattice-text: #e2e8f0;
   --lattice-text-muted: #94a3b8;
   --lattice-text-dim: #64748b;
-  
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
 }
 
 * {
@@ -35,7 +34,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
 }
@@ -51,18 +52,21 @@ body {
 
 /* Subtle grid background */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
-  background-image: 
-    linear-gradient(rgba(79, 70, 229, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(79, 70, 229, 0.03) 1px, transparent 1px);
+  background-image: linear-gradient(
+      rgba(255, 183, 197, 0.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(255, 183, 197, 0.03) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none;
   z-index: -1;
 }
 
-code, pre {
+code,
+pre {
   font-family: var(--font-mono);
 }
 
@@ -96,4 +100,3 @@ code, pre {
   background: var(--lattice-primary-glow);
   color: var(--lattice-text);
 }
-
