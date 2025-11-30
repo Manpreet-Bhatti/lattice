@@ -22,7 +22,7 @@ func main() {
 
 	handler := corsMiddleware(http.DefaultServeMux)
 
-	log.Println("🔷 Lattice server starting on :8080")
+	log.Println("🌸 Lattice server starting on :8080")
 	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

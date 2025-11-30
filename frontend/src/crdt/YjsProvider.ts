@@ -120,7 +120,7 @@ export class LatticeProvider extends EventEmitter {
     this.ws.binaryType = "arraybuffer";
 
     this.ws.onopen = () => {
-      console.log("🔷 Lattice: Connected to room", this.roomId);
+      console.log("🌸 Lattice: Connected to room", this.roomId);
       this.setStatus("connected");
       this.reconnectAttempts = 0;
 
@@ -138,7 +138,7 @@ export class LatticeProvider extends EventEmitter {
     };
 
     this.ws.onclose = () => {
-      console.log("🔷 Lattice: Disconnected from room", this.roomId);
+      console.log("🌸 Lattice: Disconnected from room", this.roomId);
       this.ws = null;
       this.synced = false;
       this.setStatus("disconnected");
@@ -146,7 +146,7 @@ export class LatticeProvider extends EventEmitter {
     };
 
     this.ws.onerror = (error) => {
-      console.error("🔷 Lattice: WebSocket error", error);
+      console.error("🌸 Lattice: WebSocket error", error);
       this.setStatus("error");
     };
   }
@@ -179,7 +179,7 @@ export class LatticeProvider extends EventEmitter {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log("🔷 Lattice: Max reconnection attempts reached");
+      console.log("🌸 Lattice: Max reconnection attempts reached");
       return;
     }
 
@@ -187,7 +187,7 @@ export class LatticeProvider extends EventEmitter {
     this.reconnectAttempts++;
 
     console.log(
-      `🔷 Lattice: Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+      `🌸 Lattice: Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
     );
 
     this.reconnectTimeout = window.setTimeout(() => {
@@ -207,7 +207,7 @@ export class LatticeProvider extends EventEmitter {
         this.handleAwarenessMessage(decoder);
         break;
       default:
-        console.warn("🔷 Lattice: Unknown message type", messageType);
+        console.warn("🌸 Lattice: Unknown message type", messageType);
     }
   };
 
@@ -235,7 +235,7 @@ export class LatticeProvider extends EventEmitter {
         if (!this.synced) {
           this.synced = true;
           this.emit("synced", [true]);
-          console.log("🔷 Lattice: Document synced");
+          console.log("🌸 Lattice: Document synced");
         }
         break;
       }
