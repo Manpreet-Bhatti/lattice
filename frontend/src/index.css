@@ -50,7 +50,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle grid background */
 body::before {
   content: "";
   position: fixed;
@@ -70,7 +69,6 @@ pre {
   font-family: var(--font-mono);
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -89,13 +87,11 @@ pre {
   background: var(--lattice-text-dim);
 }
 
-/* Focus styles */
 :focus-visible {
   outline: 2px solid var(--lattice-border-focus);
   outline-offset: 2px;
 }
 
-/* Selection */
 ::selection {
   background: var(--lattice-primary-glow);
   color: var(--lattice-text);
