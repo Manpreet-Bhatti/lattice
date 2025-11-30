@@ -24,6 +24,7 @@ export interface AwarenessState {
     anchor: number;
     head: number;
   };
+  isTyping?: boolean;
 }
 
 interface AwarenessChange {
