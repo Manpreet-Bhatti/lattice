@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { Presence } from "./components/Presence";
-import { Editor } from "./components/Editor";
+import { CodeMirrorEditor } from "./components/Editor";
 import { useLattice } from "./hooks/useLattice";
 import styles from "./App.module.css";
 
@@ -12,33 +12,18 @@ function getInitialRoomId(): string {
   );
 }
 
+const isMac =
+  navigator.userAgent.includes("Mac") ||
+  ("userAgentData" in navigator &&
+    (navigator.userAgentData as { platform?: string })?.platform === "macOS");
+
 function App() {
   const [roomId] = useState(getInitialRoomId);
-  const [content, setContent] = useState("");
   const [syncStatus, setSyncStatus] = useState<string>("waiting");
-  const isLocalChangeRef = useRef(false);
 
-  const {
-    status,
-    synced,
-    users,
-    getText,
-    setText,
-    onTextChange,
-    updateCursor,
-    userInfo,
-  } = useLattice({ roomId });
-
-  useEffect(() => {
-    const unsubscribe = onTextChange((newText) => {
-      if (!isLocalChangeRef.current) {
-        setContent(newText);
-      }
-      isLocalChangeRef.current = false;
-    });
-
-    return unsubscribe;
-  }, [onTextChange]);
+  const { status, synced, users, yText, awareness, userInfo } = useLattice({
+    roomId,
+  });
 
   // Update sync status display
   useEffect(() => {
@@ -53,26 +38,6 @@ function App() {
     }
   }, [status, synced]);
 
-  // Initialize content when synced
-  useEffect(() => {
-    if (synced) {
-      const text = getText();
-      if (text) {
-        setContent(text);
-      }
-    }
-  }, [synced, getText]);
-
-  const handleEditorChange = (newContent: string) => {
-    isLocalChangeRef.current = true;
-    setContent(newContent);
-    setText(newContent);
-  };
-
-  const handleSelectionChange = (start: number, end: number) => {
-    updateCursor(start, end);
-  };
-
   return (
     <div className={styles.app}>
       <Toolbar roomId={roomId} connectionStatus={status} />
@@ -81,11 +46,31 @@ function App() {
 
       <main className={styles.main}>
         <div className={styles.editorPane}>
-          <Editor
-            content={content}
-            onChange={handleEditorChange}
-            onSelectionChange={handleSelectionChange}
-          />
+          {yText && awareness ? (
+            <CodeMirrorEditor
+              yText={yText}
+              awareness={awareness}
+              language="typescript"
+              placeholder={`// Welcome to Lattice! 🌸
+// 
+// This is a real-time collaborative code editor
+// powered by CRDTs (Conflict-free Replicated Data Types).
+//
+// Open this URL in another browser tab and start typing
+// to see the magic happen!
+//
+// Features:
+// - Real-time sync with no conflicts
+// - Syntax highlighting for 15+ languages
+// - Remote cursor awareness
+// - Automatic reconnection`}
+            />
+          ) : (
+            <div className={styles.loadingEditor}>
+              <div className={styles.spinner} />
+              <span>Initializing editor...</span>
+            </div>
+          )}
         </div>
 
         <aside className={styles.sidebar}>
@@ -99,7 +84,7 @@ function App() {
             </div>
             <p className={styles.syncInfo}>
               {synced
-                ? "Document is synchronized across all clients. Changes are instantly shared."
+                ? "Document is synchronized. Changes are instantly shared."
                 : "Waiting for initial sync with server..."}
             </p>
           </div>
@@ -136,20 +121,38 @@ function App() {
           </div>
 
           <div className={styles.panel}>
-            <h3 className={styles.panelTitle}>How It Works</h3>
-            <div className={styles.howItWorks}>
-              <p>
-                <strong>CRDT-powered sync:</strong> Changes are merged using
-                Conflict-free Replicated Data Types (CRDTs).
-              </p>
-              <p>
-                <strong>No conflicts:</strong> Even if two users edit the same
-                line simultaneously, changes merge deterministically.
-              </p>
-              <p>
-                <strong>Offline support:</strong> Changes queue locally and sync
-                when reconnected.
-              </p>
+            <h3 className={styles.panelTitle}>Keyboard Shortcuts</h3>
+            <div className={styles.shortcuts}>
+              <div className={styles.shortcut}>
+                <div className={styles.keys}>
+                  <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>+<kbd>Z</kbd>
+                </div>
+                <span>Undo</span>
+              </div>
+              <div className={styles.shortcut}>
+                <div className={styles.keys}>
+                  <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>+<kbd>⇧</kbd>+<kbd>Z</kbd>
+                </div>
+                <span>Redo</span>
+              </div>
+              <div className={styles.shortcut}>
+                <div className={styles.keys}>
+                  <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>+<kbd>F</kbd>
+                </div>
+                <span>Find</span>
+              </div>
+              <div className={styles.shortcut}>
+                <div className={styles.keys}>
+                  <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>+<kbd>/</kbd>
+                </div>
+                <span>Comment</span>
+              </div>
+              <div className={styles.shortcut}>
+                <div className={styles.keys}>
+                  <kbd>Tab</kbd>
+                </div>
+                <span>Indent</span>
+              </div>
             </div>
           </div>
         </aside>
