@@ -3,6 +3,8 @@ package ws
 import (
 	"log"
 	"sync"
+
+	"github.com/manpreetbhatti/lattice/backend/internal/db"
 )
 
 // Message types for Yjs protocol
@@ -13,15 +15,16 @@ const (
 
 // Sync message types
 const (
-	SyncStep1  = 0 // Client sends state vector
-	SyncStep2  = 1 // Server sends missing updates
-	SyncUpdate = 2 // Regular update
+	SyncStep1  = 0
+	SyncStep2  = 1
+	SyncUpdate = 2
 )
 
-// Document state for a room
+// Stores in-memory state for active rooms
 type RoomState struct {
 	Updates         [][]byte
 	AwarenessStates map[uint64][]byte
+	ClientCount     int
 	mu              sync.RWMutex
 }
 
@@ -35,7 +38,6 @@ func NewRoomState() *RoomState {
 func (r *RoomState) AddUpdate(update []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
 	updateCopy := make([]byte, len(update))
 	copy(updateCopy, update)
 	r.Updates = append(r.Updates, updateCopy)
@@ -47,16 +49,10 @@ func (r *RoomState) GetUpdates() [][]byte {
 	return r.Updates
 }
 
-func (r *RoomState) SetAwareness(clientID uint64, state []byte) {
+func (r *RoomState) SetUpdates(updates [][]byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if len(state) == 0 {
-		delete(r.AwarenessStates, clientID)
-	} else {
-		stateCopy := make([]byte, len(state))
-		copy(stateCopy, state)
-		r.AwarenessStates[clientID] = stateCopy
-	}
+	r.Updates = updates
 }
 
 func (r *RoomState) GetAllAwareness() [][]byte {
@@ -69,13 +65,14 @@ func (r *RoomState) GetAllAwareness() [][]byte {
 	return result
 }
 
-// Hub for managing clients and broadcasting messages
+// Hub manages clients, rooms, and persistence
 type Hub struct {
 	rooms      map[string]map[*Client]bool
 	roomStates map[string]*RoomState
 	broadcast  chan *Message
 	register   chan *Client
 	unregister chan *Client
+	database   *db.Database
 	mu         sync.RWMutex
 }
 
@@ -85,13 +82,14 @@ type Message struct {
 	Sender *Client
 }
 
-func NewHub() *Hub {
+func NewHub(database *db.Database) *Hub {
 	return &Hub{
 		rooms:      make(map[string]map[*Client]bool),
 		roomStates: make(map[string]*RoomState),
 		broadcast:  make(chan *Message, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		database:   database,
 	}
 }
 
@@ -99,11 +97,24 @@ func (h *Hub) getRoomState(roomID string) *RoomState {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if _, ok := h.roomStates[roomID]; !ok {
-		h.roomStates[roomID] = NewRoomState()
+	if state, ok := h.roomStates[roomID]; ok {
+		return state
 	}
 
-	return h.roomStates[roomID]
+	roomState := NewRoomState()
+	h.roomStates[roomID] = roomState
+
+	if h.database != nil {
+		updates, err := h.database.GetAllUpdates(roomID)
+		if err != nil {
+			log.Printf("Error loading updates for room %s: %v", roomID, err)
+		} else if len(updates) > 0 {
+			roomState.SetUpdates(updates)
+			log.Printf("Loaded %d persisted updates for room %s", len(updates), roomID)
+		}
+	}
+
+	return roomState
 }
 
 func (h *Hub) Run() {
@@ -111,10 +122,8 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.handleRegister(client)
-
 		case client := <-h.unregister:
 			h.handleUnregister(client)
-
 		case message := <-h.broadcast:
 			h.handleBroadcast(message)
 		}
@@ -132,29 +141,25 @@ func (h *Hub) handleRegister(client *Client) {
 
 	log.Printf("Client joined room %s (total: %d)", client.roomID, clientCount)
 
-	// Send existing document state to the new client
 	roomState := h.getRoomState(client.roomID)
 	updates := roomState.GetUpdates()
 
 	if len(updates) > 0 {
-		log.Printf("Sending %d stored updates to new client in room %s", len(updates), client.roomID)
-
+		log.Printf("Sending %d updates to new client in room %s", len(updates), client.roomID)
 		for _, update := range updates {
 			select {
 			case client.send <- update:
 			default:
-				log.Printf("Failed to send catch-up update to client")
+				log.Printf("Failed to send catch-up update")
 			}
 		}
 	}
 
-	// Send existing awareness states
-	awarenessStates := roomState.GetAllAwareness()
-	for _, state := range awarenessStates {
+	// Send awareness states
+	for _, state := range roomState.GetAllAwareness() {
 		select {
 		case client.send <- state:
 		default:
-			log.Printf("Failed to send awareness state to client")
 		}
 	}
 }
@@ -183,14 +188,18 @@ func (h *Hub) handleBroadcast(message *Message) {
 		messageType := message.Data[0]
 		roomState := h.getRoomState(message.RoomID)
 
-		switch messageType {
-		case MessageSync:
+		if messageType == MessageSync {
 			roomState.AddUpdate(message.Data)
-		case MessageAwareness:
 
+			if h.database != nil {
+				if err := h.database.SaveUpdate(message.RoomID, message.Data); err != nil {
+					log.Printf("Error persisting update: %v", err)
+				}
+			}
 		}
 	}
 
+	// Broadcast to other clients
 	h.mu.RLock()
 	clients, ok := h.rooms[message.RoomID]
 	h.mu.RUnlock()
@@ -211,4 +220,33 @@ func (h *Hub) handleBroadcast(message *Message) {
 			}
 		}
 	}
+}
+
+func (h *Hub) GetRoomCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return len(h.rooms)
+}
+
+func (h *Hub) GetClientCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	count := 0
+	for _, clients := range h.rooms {
+		count += len(clients)
+	}
+
+	return count
+}
+
+func (h *Hub) GetActiveRooms() map[string]int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	result := make(map[string]int)
+	for roomID, clients := range h.rooms {
+		result[roomID] = len(clients)
+	}
+
+	return result
 }
