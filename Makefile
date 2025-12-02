@@ -18,8 +18,15 @@ help:
 	@echo "Production:"
 	@echo "  make prod         - Start with production profile (includes nginx proxy)"
 	@echo ""
+	@echo "Testing:"
+	@echo "  make test          - Run backend + frontend unit tests"
+	@echo "  make test-backend  - Run Go tests with coverage"
+	@echo "  make test-frontend - Run Vitest unit tests"
+	@echo "  make test-e2e      - Run Playwright E2E tests"
+	@echo "  make test-e2e-ui   - Run E2E tests with interactive UI"
+	@echo "  make test-all      - Run all tests"
+	@echo ""
 	@echo "Utilities:"
-	@echo "  make test         - Run tests"
 	@echo "  make lint         - Run linters"
 
 # Development (without Docker)
@@ -75,8 +82,27 @@ test:
 	@echo "Running backend tests..."
 	cd backend && go test ./...
 	@echo ""
-	@echo "Running frontend tests..."
-	cd frontend && npm test --passWithNoTests
+	@echo "Running frontend unit tests..."
+	cd frontend && npm test
+
+test-backend:
+	@echo "Running backend tests with coverage..."
+	cd backend && go test ./... -cover -v
+
+test-frontend:
+	@echo "Running frontend unit tests..."
+	cd frontend && npm test
+
+test-e2e:
+	@echo "Running E2E tests (requires servers running)..."
+	cd frontend && npm run test:e2e
+
+test-e2e-ui:
+	@echo "Running E2E tests with UI..."
+	cd frontend && npm run test:e2e:ui
+
+test-all: test test-e2e
+	@echo "All tests completed!"
 
 lint:
 	@echo "Linting backend..."
