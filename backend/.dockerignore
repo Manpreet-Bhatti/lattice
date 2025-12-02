@@ -1,0 +1,35 @@
+# Dependencies
+vendor/
+
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+lattice-server
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data
+data/
+*.db
+
+# Environment
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+LICENSE
+
+# Test files
+*_test.go
+
