@@ -34,6 +34,7 @@ func setupTestAPI(t *testing.T) (*API, func()) {
 	api := New(hub, database)
 
 	cleanup := func() {
+		hub.Stop()
 		database.Close()
 		os.RemoveAll(tmpDir)
 	}
@@ -177,7 +178,9 @@ func TestListRooms(t *testing.T) {
 	defer cleanup()
 
 	for i := 0; i < 5; i++ {
-		api.database.CreateRoom("list-room-"+string(rune('a'+i)), "Room "+string(rune('A'+i)))
+		if err := api.database.CreateRoom("list-room-"+string(rune('a'+i)), "Room "+string(rune('A'+i))); err != nil {
+			t.Fatalf("Failed to create room: %v", err)
+		}
 	}
 
 	req := httptest.NewRequest("GET", "/api/rooms", nil)
@@ -209,7 +212,9 @@ func TestListRoomsPagination(t *testing.T) {
 	defer cleanup()
 
 	for i := 0; i < 10; i++ {
-		api.database.CreateRoom("page-room-"+string(rune('a'+i)), "")
+		if err := api.database.CreateRoom("page-room-"+string(rune('a'+i)), ""); err != nil {
+			t.Fatalf("Failed to create room: %v", err)
+		}
 	}
 
 	req := httptest.NewRequest("GET", "/api/rooms?limit=3", nil)
@@ -218,7 +223,9 @@ func TestListRoomsPagination(t *testing.T) {
 	api.ListRoomsHandler(w, req)
 
 	var response map[string]any
-	json.NewDecoder(w.Body).Decode(&response)
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	rooms := response["rooms"].([]any)
 	if len(rooms) != 3 {
@@ -230,7 +237,9 @@ func TestListRoomsPagination(t *testing.T) {
 
 	api.ListRoomsHandler(w, req)
 
-	json.NewDecoder(w.Body).Decode(&response)
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	rooms = response["rooms"].([]any)
 	if len(rooms) != 3 {

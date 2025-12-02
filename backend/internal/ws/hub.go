@@ -72,6 +72,7 @@ type Hub struct {
 	broadcast  chan *Message
 	register   chan *Client
 	unregister chan *Client
+	stop       chan struct{}
 	database   *db.Database
 	mu         sync.RWMutex
 }
@@ -89,6 +90,7 @@ func NewHub(database *db.Database) *Hub {
 		broadcast:  make(chan *Message, 256),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		stop:       make(chan struct{}),
 		database:   database,
 	}
 }
@@ -120,6 +122,8 @@ func (h *Hub) getRoomState(roomID string) *RoomState {
 func (h *Hub) Run() {
 	for {
 		select {
+		case <-h.stop:
+			return
 		case client := <-h.register:
 			h.handleRegister(client)
 		case client := <-h.unregister:
@@ -128,6 +132,10 @@ func (h *Hub) Run() {
 			h.handleBroadcast(message)
 		}
 	}
+}
+
+func (h *Hub) Stop() {
+	close(h.stop)
 }
 
 func (h *Hub) handleRegister(client *Client) {

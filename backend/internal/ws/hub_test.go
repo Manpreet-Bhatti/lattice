@@ -116,6 +116,7 @@ func TestHubGetRoomState(t *testing.T) {
 func TestHubRoomCount(t *testing.T) {
 	hub := NewHub(nil)
 	go hub.Run()
+	defer hub.Stop()
 
 	if hub.GetRoomCount() != 0 {
 		t.Errorf("Expected 0 rooms, got %d", hub.GetRoomCount())
@@ -150,6 +151,7 @@ func TestHubActiveRooms(t *testing.T) {
 func TestBroadcastMessage(t *testing.T) {
 	hub := NewHub(nil)
 	go hub.Run()
+	defer hub.Stop()
 
 	time.Sleep(10 * time.Millisecond)
 
@@ -175,6 +177,7 @@ func TestBroadcastMessage(t *testing.T) {
 func TestAwarenessMessageNotStored(t *testing.T) {
 	hub := NewHub(nil)
 	go hub.Run()
+	defer hub.Stop()
 
 	time.Sleep(10 * time.Millisecond)
 
@@ -200,6 +203,7 @@ func TestAwarenessMessageNotStored(t *testing.T) {
 func TestMultipleRoomsBroadcast(t *testing.T) {
 	hub := NewHub(nil)
 	go hub.Run()
+	defer hub.Stop()
 
 	time.Sleep(10 * time.Millisecond)
 

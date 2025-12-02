@@ -217,10 +217,14 @@ func TestStats(t *testing.T) {
 	defer cleanup()
 
 	for i := 0; i < 3; i++ {
-		db.CreateRoom("stats-room-"+string(rune('a'+i)), "")
+		if err := db.CreateRoom("stats-room-"+string(rune('a'+i)), ""); err != nil {
+			t.Fatalf("Failed to create room: %v", err)
+		}
 	}
 	for i := 0; i < 5; i++ {
-		db.SaveUpdate("stats-room-a", []byte{byte(i)})
+		if err := db.SaveUpdate("stats-room-a", []byte{byte(i)}); err != nil {
+			t.Fatalf("Failed to save update: %v", err)
+		}
 	}
 
 	stats, err := db.GetStats()
