@@ -1,0 +1,25 @@
+version: "3.8"
+
+# Development override - use this with:
+# docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app/src:ro
+      - lattice-data:/app/data
+    environment:
+      - PORT=8080
+      - LATTICE_DB_PATH=/app/data/lattice.db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_WS_HOST=localhost:8080
+    ports:
+      - "3000:80"
