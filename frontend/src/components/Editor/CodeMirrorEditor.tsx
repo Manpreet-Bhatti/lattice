@@ -42,6 +42,7 @@ import * as Y from "yjs";
 import { Awareness } from "../../crdt/YjsProvider";
 import { latticeThemeExtension } from "./theme";
 import { getLanguageSupport, LanguageId } from "./languages";
+import { largeDocumentExtensions, shouldDisableSyntax } from "./largeDocument";
 import styles from "./CodeMirrorEditor.module.css";
 
 export interface EditorRef {
@@ -156,6 +157,15 @@ export const CodeMirrorEditor = forwardRef<EditorRef, CodeMirrorEditorProps>(
           awareness.off(event, callback),
       };
 
+      const docLength = yText.length;
+      const disableSyntax = shouldDisableSyntax(docLength);
+
+      if (disableSyntax) {
+        console.log(
+          `📄 Document too large (${(docLength / 1024).toFixed(1)}KB), syntax highlighting disabled`
+        );
+      }
+
       const extensions = [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -182,7 +192,6 @@ export const CodeMirrorEditor = forwardRef<EditorRef, CodeMirrorEditorProps>(
           ...foldKeymap,
           ...completionKeymap,
           indentWithTab,
-          // AI completion shortcut (Ctrl+Space when no autocomplete)
           {
             key: "Ctrl-Space",
             run: () => {
@@ -197,7 +206,13 @@ export const CodeMirrorEditor = forwardRef<EditorRef, CodeMirrorEditorProps>(
 
         latticeThemeExtension,
 
-        getLanguageSupport(currentLanguage),
+        ...(disableSyntax ? [] : [getLanguageSupport(currentLanguage)]),
+
+        largeDocumentExtensions({
+          sizeThreshold: 100_000,
+          syntaxDisableThreshold: 500_000,
+          updateDebounceMs: 100,
+        }),
 
         yCollab(yText, awarenessAdapter),
 
