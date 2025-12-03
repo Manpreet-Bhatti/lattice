@@ -38,6 +38,8 @@ func main() {
 	http.HandleFunc("/api/stats", apiHandler.StatsHandler)
 	http.HandleFunc("/api/rooms", apiHandler.RoomsRouter)
 	http.HandleFunc("/api/rooms/", apiHandler.RoomsRouter)
+	http.HandleFunc("/api/versions", apiHandler.VersionsRouter)
+	http.HandleFunc("/api/versions/", apiHandler.VersionsRouter)
 
 	// Apply CORS middleware
 	handler := corsMiddleware(http.DefaultServeMux)
@@ -65,6 +67,10 @@ func main() {
 	log.Println("  - Stats:     GET /api/stats")
 	log.Println("  - Rooms:     GET/POST /api/rooms")
 	log.Println("  - Room:      GET/DELETE /api/rooms/{id}")
+	log.Println("  - Versions:  GET/POST /api/versions")
+	log.Println("  - Version:   GET/DELETE /api/versions/{id}")
+	log.Println("  - Diff:      GET /api/versions/diff?from=X&to=Y")
+	log.Println("  - Restore:   POST /api/versions/{id}/restore")
 
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("ListenAndServe: ", err)
