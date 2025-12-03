@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { Presence } from "./components/Presence";
 import { CodeMirrorEditor } from "./components/Editor";
+import { VersionHistory } from "./components/VersionHistory";
+import { DiffView } from "./components/DiffView";
 import { useLattice } from "./hooks/useLattice";
+import { useVersionHistory } from "./hooks/useVersionHistory";
 import styles from "./App.module.css";
 
 function getInitialRoomId(): string {
@@ -25,7 +28,29 @@ function App() {
     roomId,
   });
 
-  // Update sync status display
+  const stableGetText = useCallback(() => {
+    return yText?.toString() || "";
+  }, [yText]);
+
+  const stableSetText = useCallback(
+    (text: string) => {
+      if (yText) {
+        yText.delete(0, yText.length);
+        yText.insert(0, text);
+      }
+    },
+    [yText]
+  );
+
+  const versionHistory = useVersionHistory({
+    roomId,
+    getText: stableGetText,
+    setText: stableSetText,
+    userName: userInfo.name,
+    autoSaveInterval: 60000,
+    autoSaveMinChanges: 50,
+  });
+
   useEffect(() => {
     if (status === "connecting") {
       setSyncStatus("connecting...");
@@ -121,6 +146,21 @@ function App() {
           </div>
 
           <div className={styles.panel}>
+            <VersionHistory
+              versions={versionHistory.versions}
+              loading={versionHistory.loading}
+              error={versionHistory.error}
+              onCreateVersion={versionHistory.createVersion}
+              onGetVersion={versionHistory.getVersion}
+              onCompareWithCurrent={versionHistory.compareWithCurrent}
+              onCompareVersions={versionHistory.getDiff}
+              onRestoreVersion={versionHistory.restoreVersion}
+              onDeleteVersion={versionHistory.deleteVersion}
+              onRefresh={versionHistory.fetchVersions}
+            />
+          </div>
+
+          <div className={styles.panel}>
             <h3 className={styles.panelTitle}>Keyboard Shortcuts</h3>
             <div className={styles.shortcuts}>
               <div className={styles.shortcut}>
@@ -157,6 +197,14 @@ function App() {
           </div>
         </aside>
       </main>
+
+      {versionHistory.showDiff && versionHistory.diffResult && (
+        <DiffView
+          diffResult={versionHistory.diffResult}
+          onClose={() => versionHistory.setShowDiff(false)}
+          onRestore={versionHistory.restoreVersion}
+        />
+      )}
     </div>
   );
 }
