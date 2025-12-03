@@ -67,6 +67,9 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 func (c *Client) readPump() {
 	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("🔥 Panic in readPump for client %s: %v", c.clientID, r)
+		}
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
@@ -128,23 +131,28 @@ func validateYjsMessage(data []byte) error {
 			return fmt.Errorf("sync message too short")
 		}
 		syncType := data[1]
-		if syncType > 2 {
+		if syncType > 10 {
 			return fmt.Errorf("invalid sync type: %d", syncType)
 		}
 		return nil
+
 	case MessageAwareness:
-		if len(data) < 2 {
-			return fmt.Errorf("awareness message too short")
+		return nil
+
+	default:
+		if messageType > 10 {
+			return fmt.Errorf("unknown message type: %d", messageType)
 		}
 		return nil
-	default:
-		return fmt.Errorf("unknown message type: %d", messageType)
 	}
 }
 
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("🔥 Panic in writePump for client %s: %v", c.clientID, r)
+		}
 		ticker.Stop()
 		c.conn.Close()
 	}()

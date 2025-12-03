@@ -211,16 +211,43 @@ func (h *Hub) handleRegister(client *Client) {
 }
 
 func (h *Hub) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("🔥 Panic in Hub.Run: %v", r)
+		}
+	}()
+
 	for {
 		select {
 		case <-h.stop:
 			return
 		case client := <-h.register:
-			h.handleRegister(client)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("🔥 Panic in handleRegister: %v", r)
+					}
+				}()
+				h.handleRegister(client)
+			}()
 		case client := <-h.unregister:
-			h.handleUnregister(client)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("🔥 Panic in handleUnregister: %v", r)
+					}
+				}()
+				h.handleUnregister(client)
+			}()
 		case message := <-h.broadcast:
-			h.handleBroadcast(message)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("🔥 Panic in handleBroadcast: %v", r)
+					}
+				}()
+				h.handleBroadcast(message)
+			}()
 		}
 	}
 }
