@@ -251,7 +251,6 @@ function App() {
               resultType={aiResultType}
               onAcceptCompletion={handleAcceptAI}
               onDismiss={handleDismissAI}
-              isMac={isMac}
             />
           </div>
 
@@ -290,7 +289,7 @@ function App() {
               </div>
               <div className={styles.shortcut}>
                 <div className={styles.keys}>
-                  <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>+<kbd>Space</kbd>
+                  <kbd>Ctrl</kbd>+<kbd>Space</kbd>
                 </div>
                 <span>AI Complete</span>
               </div>

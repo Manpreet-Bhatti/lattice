@@ -12,7 +12,6 @@ interface AIAssistProps {
   resultType?: "completion" | "explanation" | "refactor" | null;
   onAcceptCompletion?: () => void;
   onDismiss?: () => void;
-  isMac: boolean;
 }
 
 export function AIAssist({
@@ -26,7 +25,6 @@ export function AIAssist({
   resultType,
   onAcceptCompletion,
   onDismiss,
-  isMac,
 }: AIAssistProps) {
   const [activeTab, setActiveTab] = useState<
     "complete" | "explain" | "refactor"
@@ -144,8 +142,7 @@ export function AIAssist({
               )}
             </button>
             <div className={styles.shortcut}>
-              <kbd>{isMac ? "⌘" : "Ctrl"}</kbd>+<kbd>Space</kbd> to trigger in
-              editor
+              <kbd>Ctrl</kbd>+<kbd>Space</kbd> to trigger in editor
             </div>
           </div>
         )}
