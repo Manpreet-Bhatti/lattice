@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/manpreetbhatti/lattice/backend/internal/compaction"
 	"github.com/manpreetbhatti/lattice/backend/internal/db"
 )
 
@@ -107,88 +108,33 @@ func (h *Hub) getRoomState(roomID string) *RoomState {
 	h.roomStates[roomID] = roomState
 
 	if h.database != nil {
+		snapshot, snapshotCount, err := h.database.GetSnapshot(roomID)
+		if err != nil {
+			log.Printf("Error loading snapshot for room %s: %v", roomID, err)
+		}
+
+		var allUpdates [][]byte
+
+		if len(snapshot) > 0 {
+			snapshotUpdates := compaction.SplitMergedUpdates(snapshot)
+			allUpdates = append(allUpdates, snapshotUpdates...)
+			log.Printf("Loaded snapshot with %d updates for room %s", len(snapshotUpdates), roomID)
+		}
+
 		updates, err := h.database.GetAllUpdates(roomID)
 		if err != nil {
 			log.Printf("Error loading updates for room %s: %v", roomID, err)
 		} else if len(updates) > 0 {
-			roomState.SetUpdates(updates)
-			log.Printf("Loaded %d persisted updates for room %s", len(updates), roomID)
+			allUpdates = append(allUpdates, updates...)
+			log.Printf("Loaded %d recent updates for room %s (snapshot had %d)", len(updates), roomID, snapshotCount)
+		}
+
+		if len(allUpdates) > 0 {
+			roomState.SetUpdates(allUpdates)
 		}
 	}
 
 	return roomState
-}
-
-func (h *Hub) Run() {
-	for {
-		select {
-		case <-h.stop:
-			return
-		case client := <-h.register:
-			h.handleRegister(client)
-		case client := <-h.unregister:
-			h.handleUnregister(client)
-		case message := <-h.broadcast:
-			h.handleBroadcast(message)
-		}
-	}
-}
-
-func (h *Hub) Stop() {
-	close(h.stop)
-}
-
-func (h *Hub) handleRegister(client *Client) {
-	h.mu.Lock()
-	if _, ok := h.rooms[client.roomID]; !ok {
-		h.rooms[client.roomID] = make(map[*Client]bool)
-	}
-	h.rooms[client.roomID][client] = true
-	clientCount := len(h.rooms[client.roomID])
-	h.mu.Unlock()
-
-	log.Printf("Client joined room %s (total: %d)", client.roomID, clientCount)
-
-	roomState := h.getRoomState(client.roomID)
-	updates := roomState.GetUpdates()
-
-	if len(updates) > 0 {
-		log.Printf("Sending %d updates to new client in room %s", len(updates), client.roomID)
-		for _, update := range updates {
-			select {
-			case client.send <- update:
-			default:
-				log.Printf("Failed to send catch-up update")
-			}
-		}
-	}
-
-	// Send awareness states
-	for _, state := range roomState.GetAllAwareness() {
-		select {
-		case client.send <- state:
-		default:
-		}
-	}
-}
-
-func (h *Hub) handleUnregister(client *Client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if clients, ok := h.rooms[client.roomID]; ok {
-		if _, ok := clients[client]; ok {
-			delete(clients, client)
-			close(client.send)
-
-			if len(clients) == 0 {
-				delete(h.rooms, client.roomID)
-				log.Printf("Room %s closed (empty)", client.roomID)
-			} else {
-				log.Printf("Client left room %s (remaining: %d)", client.roomID, len(clients))
-			}
-		}
-	}
 }
 
 func (h *Hub) handleBroadcast(message *Message) {
@@ -225,6 +171,78 @@ func (h *Hub) handleBroadcast(message *Message) {
 				close(client.send)
 				delete(clients, client)
 				h.mu.Unlock()
+			}
+		}
+	}
+}
+
+func (h *Hub) handleRegister(client *Client) {
+	h.mu.Lock()
+	if _, ok := h.rooms[client.roomID]; !ok {
+		h.rooms[client.roomID] = make(map[*Client]bool)
+	}
+	h.rooms[client.roomID][client] = true
+	clientCount := len(h.rooms[client.roomID])
+	h.mu.Unlock()
+
+	log.Printf("Client joined room %s (total: %d)", client.roomID, clientCount)
+
+	roomState := h.getRoomState(client.roomID)
+	updates := roomState.GetUpdates()
+
+	if len(updates) > 0 {
+		log.Printf("Sending %d updates to new client in room %s", len(updates), client.roomID)
+		for _, update := range updates {
+			select {
+			case client.send <- update:
+			default:
+				log.Printf("Failed to send catch-up update")
+			}
+		}
+	}
+
+	// Send awareness states
+	for _, state := range roomState.GetAllAwareness() {
+		select {
+		case client.send <- state:
+		default:
+		}
+	}
+}
+
+func (h *Hub) Run() {
+	for {
+		select {
+		case <-h.stop:
+			return
+		case client := <-h.register:
+			h.handleRegister(client)
+		case client := <-h.unregister:
+			h.handleUnregister(client)
+		case message := <-h.broadcast:
+			h.handleBroadcast(message)
+		}
+	}
+}
+
+func (h *Hub) Stop() {
+	close(h.stop)
+}
+
+func (h *Hub) handleUnregister(client *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if clients, ok := h.rooms[client.roomID]; ok {
+		if _, ok := clients[client]; ok {
+			delete(clients, client)
+			close(client.send)
+
+			if len(clients) == 0 {
+				delete(h.rooms, client.roomID)
+				log.Printf("Room %s closed (empty)", client.roomID)
+			} else {
+				log.Printf("Client left room %s (remaining: %d)", client.roomID, len(clients))
 			}
 		}
 	}

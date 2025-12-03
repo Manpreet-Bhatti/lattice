@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/manpreetbhatti/lattice/backend/internal/api"
+	"github.com/manpreetbhatti/lattice/backend/internal/compaction"
 	"github.com/manpreetbhatti/lattice/backend/internal/db"
 	"github.com/manpreetbhatti/lattice/backend/internal/ws"
 )
@@ -26,6 +27,9 @@ func main() {
 
 	hub := ws.NewHub(database)
 	go hub.Run()
+
+	compactionService := compaction.New(database, compaction.DefaultConfig())
+	compactionService.Start()
 
 	apiHandler := api.New(hub, database)
 
@@ -51,6 +55,8 @@ func main() {
 		<-sigChan
 
 		log.Println("Shutting down server...")
+		compactionService.Stop()
+		hub.Stop()
 		database.Close()
 		os.Exit(0)
 	}()
