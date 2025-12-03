@@ -40,6 +40,7 @@ func main() {
 	http.HandleFunc("/api/rooms/", apiHandler.RoomsRouter)
 	http.HandleFunc("/api/versions", apiHandler.VersionsRouter)
 	http.HandleFunc("/api/versions/", apiHandler.VersionsRouter)
+	http.HandleFunc("/api/ai/", apiHandler.AIRouter)
 
 	// Apply CORS middleware
 	handler := corsMiddleware(http.DefaultServeMux)
@@ -71,6 +72,9 @@ func main() {
 	log.Println("  - Version:   GET/DELETE /api/versions/{id}")
 	log.Println("  - Diff:      GET /api/versions/diff?from=X&to=Y")
 	log.Println("  - Restore:   POST /api/versions/{id}/restore")
+	log.Println("  - AI Complete:  POST /api/ai/complete")
+	log.Println("  - AI Explain:   POST /api/ai/explain")
+	log.Println("  - AI Refactor:  POST /api/ai/refactor")
 
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("ListenAndServe: ", err)
