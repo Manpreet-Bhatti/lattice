@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func (a *API) HealthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) StatsHandler(w http.ResponseWriter, r *http.Request) {
-	stats := map[string]interface{}{
+	stats := map[string]any{
 		"active_rooms":   a.hub.GetRoomCount(),
 		"active_clients": a.hub.GetClientCount(),
 		"timestamp":      time.Now().UTC().Format(time.RFC3339),
@@ -689,4 +690,380 @@ func (a *API) VersionsRouter(w http.ResponseWriter, r *http.Request) {
 	default:
 		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 	}
+}
+
+type AICompleteRequest struct {
+	Code      string `json:"code"`
+	Language  string `json:"language"`
+	CursorPos int    `json:"cursor_pos"`
+	Prompt    string `json:"prompt,omitempty"`
+	MaxTokens int    `json:"max_tokens,omitempty"`
+	Provider  string `json:"provider,omitempty"` // "openai", "anthropic", "ollama"
+}
+
+type AICompleteResponse struct {
+	Completion string `json:"completion"`
+	StopReason string `json:"stop_reason,omitempty"`
+}
+
+type AIExplainRequest struct {
+	Code     string `json:"code"`
+	Language string `json:"language"`
+}
+
+type AIRefactorRequest struct {
+	Code        string `json:"code"`
+	Language    string `json:"language"`
+	Instruction string `json:"instruction"`
+}
+
+func (a *API) AICompleteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var req AICompleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.Code == "" {
+		errorResponse(w, http.StatusBadRequest, "code is required")
+		return
+	}
+
+	if req.MaxTokens <= 0 {
+		req.MaxTokens = 150
+	}
+
+	if req.Language == "" {
+		req.Language = "javascript"
+	}
+
+	// Build the prompt for completion
+	beforeCursor := req.Code[:req.CursorPos]
+	afterCursor := ""
+	if req.CursorPos < len(req.Code) {
+		afterCursor = req.Code[req.CursorPos:]
+	}
+
+	systemPrompt := fmt.Sprintf(`You are a code completion assistant. Complete the code at the cursor position.
+Rules:
+- Only output the completion, no explanations
+- Match the existing code style
+- Be concise - complete the current statement or block
+- Language: %s
+- If there's code after cursor, make sure completion flows naturally into it`, req.Language)
+
+	userPrompt := fmt.Sprintf("Complete this code at [CURSOR]:\n\n%s[CURSOR]%s", beforeCursor, afterCursor)
+	if req.Prompt != "" {
+		userPrompt = fmt.Sprintf("%s\n\nHint: %s", userPrompt, req.Prompt)
+	}
+
+	completion, err := callAIProvider(req.Provider, systemPrompt, userPrompt, req.MaxTokens)
+	if err != nil {
+		log.Printf("AI completion error: %v", err)
+		errorResponse(w, http.StatusServiceUnavailable, "AI service unavailable")
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, AICompleteResponse{
+		Completion: completion,
+		StopReason: "complete",
+	})
+}
+
+func (a *API) AIExplainHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var req AIExplainRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.Code == "" {
+		errorResponse(w, http.StatusBadRequest, "code is required")
+		return
+	}
+
+	systemPrompt := `You are a code explanation assistant. Explain the given code clearly and concisely.
+Include:
+- What the code does
+- Key concepts used
+- Any potential issues or improvements`
+
+	userPrompt := fmt.Sprintf("Explain this %s code:\n\n```%s\n%s\n```", req.Language, req.Language, req.Code)
+
+	explanation, err := callAIProvider("", systemPrompt, userPrompt, 500)
+	if err != nil {
+		log.Printf("AI explain error: %v", err)
+		errorResponse(w, http.StatusServiceUnavailable, "AI service unavailable")
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, map[string]string{
+		"explanation": explanation,
+	})
+}
+
+func (a *API) AIRefactorHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	var req AIRefactorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.Code == "" {
+		errorResponse(w, http.StatusBadRequest, "code is required")
+		return
+	}
+
+	if req.Instruction == "" {
+		req.Instruction = "Improve this code"
+	}
+
+	systemPrompt := `You are a code refactoring assistant. Refactor the given code according to the instruction.
+Rules:
+- Only output the refactored code
+- Preserve functionality unless asked to change it
+- Follow best practices for the language`
+
+	userPrompt := fmt.Sprintf("Refactor this %s code:\n\n```%s\n%s\n```\n\nInstruction: %s",
+		req.Language, req.Language, req.Code, req.Instruction)
+
+	refactored, err := callAIProvider("", systemPrompt, userPrompt, 1000)
+	if err != nil {
+		log.Printf("AI refactor error: %v", err)
+		errorResponse(w, http.StatusServiceUnavailable, "AI service unavailable")
+		return
+	}
+
+	// Extract code from markdown if present
+	refactored = extractCodeFromMarkdown(refactored)
+
+	jsonResponse(w, http.StatusOK, map[string]string{
+		"refactored": refactored,
+	})
+}
+
+func (a *API) AIRouter(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/ai")
+
+	switch path {
+	case "/complete", "/complete/":
+		a.AICompleteHandler(w, r)
+	case "/explain", "/explain/":
+		a.AIExplainHandler(w, r)
+	case "/refactor", "/refactor/":
+		a.AIRefactorHandler(w, r)
+	default:
+		errorResponse(w, http.StatusNotFound, "AI endpoint not found")
+	}
+}
+
+func callAIProvider(provider, systemPrompt, userPrompt string, maxTokens int) (string, error) {
+	openaiKey := getEnv("OPENAI_API_KEY", "")
+	anthropicKey := getEnv("ANTHROPIC_API_KEY", "")
+	ollamaURL := getEnv("OLLAMA_URL", "http://localhost:11434")
+
+	if provider == "" {
+		if openaiKey != "" {
+			provider = "openai"
+		} else if anthropicKey != "" {
+			provider = "anthropic"
+		} else {
+			provider = "ollama"
+		}
+	}
+
+	switch provider {
+	case "openai":
+		if openaiKey == "" {
+			return "", fmt.Errorf("openai API key not set")
+		}
+		return callOpenAI(openaiKey, systemPrompt, userPrompt, maxTokens)
+	case "anthropic":
+		if anthropicKey == "" {
+			return "", fmt.Errorf("anthropic API key not set")
+		}
+		return callAnthropic(anthropicKey, systemPrompt, userPrompt, maxTokens)
+	case "ollama":
+		return callOllama(ollamaURL, systemPrompt, userPrompt, maxTokens)
+	default:
+		return "", fmt.Errorf("unknown AI provider: %s", provider)
+	}
+}
+
+func callOpenAI(apiKey, systemPrompt, userPrompt string, maxTokens int) (string, error) {
+	reqBody := map[string]any{
+		"model": getEnv("OPENAI_MODEL", "gpt-4o-mini"),
+		"messages": []map[string]string{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPrompt},
+		},
+		"max_tokens":  maxTokens,
+		"temperature": 0.3,
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("openai API error: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Choices) == 0 {
+		return "", fmt.Errorf("no completion returned")
+	}
+
+	return strings.TrimSpace(result.Choices[0].Message.Content), nil
+}
+
+func callAnthropic(apiKey, systemPrompt, userPrompt string, maxTokens int) (string, error) {
+	reqBody := map[string]any{
+		"model":      getEnv("ANTHROPIC_MODEL", "claude-3-haiku-20240307"),
+		"max_tokens": maxTokens,
+		"system":     systemPrompt,
+		"messages": []map[string]string{
+			{"role": "user", "content": userPrompt},
+		},
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("anthropic API error: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Content []struct {
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Content) == 0 {
+		return "", fmt.Errorf("no completion returned")
+	}
+
+	return strings.TrimSpace(result.Content[0].Text), nil
+}
+
+func callOllama(baseURL, systemPrompt, userPrompt string, maxTokens int) (string, error) {
+	reqBody := map[string]any{
+		"model":  getEnv("OLLAMA_MODEL", "codellama"),
+		"prompt": fmt.Sprintf("%s\n\n%s", systemPrompt, userPrompt),
+		"stream": false,
+		"options": map[string]any{
+			"num_predict": maxTokens,
+			"temperature": 0.3,
+		},
+	}
+
+	body, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", baseURL+"/api/generate", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("ollama not available at %s: %v (run 'ollama serve' first)", baseURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Read error body for more details
+		var errBody struct {
+			Error string `json:"error"`
+		}
+		json.NewDecoder(resp.Body).Decode(&errBody)
+		if errBody.Error != "" {
+			return "", fmt.Errorf("ollama error: %s (try 'ollama pull %s')", errBody.Error, getEnv("OLLAMA_MODEL", "codellama"))
+		}
+		return "", fmt.Errorf("ollama API error: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Response string `json:"response"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(result.Response), nil
+}
+
+func extractCodeFromMarkdown(text string) string {
+	if strings.HasPrefix(text, "```") {
+		lines := strings.Split(text, "\n")
+		var codeLines []string
+		inCode := false
+		for _, line := range lines {
+			if strings.HasPrefix(line, "```") {
+				inCode = !inCode
+				continue
+			}
+			if inCode {
+				codeLines = append(codeLines, line)
+			}
+		}
+		if len(codeLines) > 0 {
+			return strings.Join(codeLines, "\n")
+		}
+	}
+	return text
+}
+
+func getEnv(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
 }
