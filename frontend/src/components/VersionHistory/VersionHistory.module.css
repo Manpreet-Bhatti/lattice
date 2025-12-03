@@ -1,0 +1,443 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 400px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lattice-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--lattice-bg-surface);
+  border: 1px solid var(--lattice-border);
+  border-radius: 6px;
+  color: var(--lattice-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--lattice-bg-elevated);
+  color: var(--lattice-text);
+  border-color: var(--lattice-primary);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.createButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--lattice-primary);
+  border: none;
+  border-radius: 6px;
+  color: var(--lattice-bg-deep);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.createButton:hover:not(:disabled) {
+  background: var(--lattice-primary-light);
+  box-shadow: 0 0 12px var(--lattice-primary-glow);
+}
+
+.createButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--lattice-error);
+}
+
+.error button {
+  background: none;
+  border: none;
+  color: var(--lattice-error);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.compareHint {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(255, 183, 197, 0.1);
+  border: 1px solid rgba(255, 183, 197, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--lattice-primary);
+}
+
+.compareHint button {
+  background: none;
+  border: none;
+  color: var(--lattice-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.timeline {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--lattice-text-dim);
+}
+
+.empty svg {
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty p {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.empty span {
+  font-size: 12px;
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.sectionHeader {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--lattice-text-dim);
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+
+.versionItem {
+  display: flex;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 6px;
+}
+
+.versionItem:hover {
+  background: var(--lattice-bg-surface);
+}
+
+.versionItem.selected {
+  background: rgba(255, 183, 197, 0.1);
+}
+
+.versionItem.auto .dot {
+  background: var(--lattice-text-dim);
+  width: 6px;
+  height: 6px;
+}
+
+.versionMarker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  padding-top: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background: var(--lattice-primary);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.line {
+  width: 2px;
+  flex: 1;
+  background: var(--lattice-border);
+  margin-top: 4px;
+}
+
+.versionItem:last-child .line {
+  display: none;
+}
+
+.versionContent {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.versionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.versionName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lattice-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.versionTime {
+  font-size: 11px;
+  color: var(--lattice-text-dim);
+  flex-shrink: 0;
+}
+
+.versionDesc {
+  font-size: 12px;
+  color: var(--lattice-text-muted);
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.versionMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hash {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--lattice-text-dim);
+  background: var(--lattice-bg-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.author {
+  font-size: 11px;
+  color: var(--lattice-text-dim);
+}
+
+.versionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--lattice-border);
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--lattice-bg-surface);
+  border: 1px solid var(--lattice-border);
+  border-radius: 4px;
+  color: var(--lattice-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionButton:hover {
+  background: var(--lattice-bg-elevated);
+  color: var(--lattice-text);
+  border-color: var(--lattice-text-dim);
+}
+
+.actionButton.restoreButton:hover {
+  color: var(--lattice-success);
+  border-color: var(--lattice-success);
+}
+
+.actionButton.deleteButton:hover {
+  color: var(--lattice-error);
+  border-color: var(--lattice-error);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--lattice-border);
+  border-top-color: var(--lattice-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: var(--lattice-bg-elevated);
+  border: 1px solid var(--lattice-border);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.modal h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--lattice-text);
+  margin-bottom: 20px;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formGroup label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lattice-text-muted);
+  margin-bottom: 6px;
+}
+
+.formGroup input,
+.formGroup textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--lattice-bg);
+  border: 1px solid var(--lattice-border);
+  border-radius: 6px;
+  color: var(--lattice-text);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.formGroup input:focus,
+.formGroup textarea:focus {
+  outline: none;
+  border-color: var(--lattice-primary);
+}
+
+.formGroup input::placeholder,
+.formGroup textarea::placeholder {
+  color: var(--lattice-text-dim);
+}
+
+.formGroup textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancelButton {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--lattice-border);
+  border-radius: 6px;
+  color: var(--lattice-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancelButton:hover {
+  background: var(--lattice-bg-surface);
+  color: var(--lattice-text);
+}
+
+.saveButton {
+  padding: 8px 16px;
+  background: var(--lattice-primary);
+  border: none;
+  border-radius: 6px;
+  color: var(--lattice-bg-deep);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: var(--lattice-primary-light);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
