@@ -85,6 +85,9 @@ export class LatticeProvider extends EventEmitter {
   private maxReconnectAttempts = 10;
   private synced = false;
 
+  private offlineQueue: Uint8Array[] = [];
+  private maxOfflineQueueSize = 1000;
+
   constructor(wsUrl: string, roomId: string, doc: Y.Doc) {
     super();
     this.wsUrl = wsUrl;
@@ -124,6 +127,9 @@ export class LatticeProvider extends EventEmitter {
       console.log("🌸 Lattice: Connected to room", this.roomId);
       this.setStatus("connected");
       this.reconnectAttempts = 0;
+
+      // Flush offline queue first (before sync to preserve order)
+      this.flushOfflineQueue();
 
       // Request document state
       this.sendSyncStep1();
@@ -305,7 +311,52 @@ export class LatticeProvider extends EventEmitter {
   private send(data: Uint8Array): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(data);
+    } else {
+      this.queueOfflineMessage(data);
     }
+  }
+
+  private queueOfflineMessage(data: Uint8Array): void {
+    if (this.offlineQueue.length >= this.maxOfflineQueueSize) {
+      console.warn("🌸 Lattice: Offline queue full, dropping oldest message");
+      this.offlineQueue.shift();
+    }
+
+    const copy = new Uint8Array(data.length);
+    copy.set(data);
+    this.offlineQueue.push(copy);
+
+    console.log(
+      `🌸 Lattice: Queued message while offline (${this.offlineQueue.length} pending)`
+    );
+  }
+
+  private flushOfflineQueue(): void {
+    if (this.offlineQueue.length === 0) {
+      return;
+    }
+
+    console.log(
+      `🌸 Lattice: Flushing ${this.offlineQueue.length} offline messages`
+    );
+
+    const queue = this.offlineQueue;
+    this.offlineQueue = [];
+
+    for (const message of queue) {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(message);
+      } else {
+        this.offlineQueue.push(message);
+      }
+    }
+  }
+
+  /**
+   * Returns the number of messages waiting in the offline queue
+   */
+  get pendingMessages(): number {
+    return this.offlineQueue.length;
   }
 }
 
