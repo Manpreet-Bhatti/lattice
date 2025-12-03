@@ -28,6 +28,18 @@ type DocumentState struct {
 	UpdatedAt time.Time
 }
 
+type Version struct {
+	ID          int       `json:"id"`
+	RoomID      string    `json:"room_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Content     string    `json:"content"`
+	ContentHash string    `json:"content_hash"`
+	CreatedBy   string    `json:"created_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	IsAuto      bool      `json:"is_auto"` // Auto-saved vs manual
+}
+
 func New(dbPath string) (*Database, error) {
 	// Ensure directory exists
 	dir := filepath.Dir(dbPath)
@@ -81,6 +93,22 @@ func createTables(db *sql.DB) error {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 	);
+
+	CREATE TABLE IF NOT EXISTS document_versions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		room_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT DEFAULT '',
+		content TEXT NOT NULL,
+		content_hash TEXT NOT NULL,
+		created_by TEXT DEFAULT '',
+		is_auto BOOLEAN DEFAULT FALSE,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_document_versions_room_id ON document_versions(room_id);
+	CREATE INDEX IF NOT EXISTS idx_document_versions_created_at ON document_versions(room_id, created_at DESC);
 	`
 
 	_, err := db.Exec(schema)
@@ -238,6 +266,117 @@ func (d *Database) DeleteUpdatesBeforeSnapshot(roomID string, keepCount int) err
 			SELECT id FROM document_updates 
 			WHERE room_id = ? 
 			ORDER BY id DESC 
+			LIMIT ?
+		)
+	`, roomID, roomID, keepCount)
+	return err
+}
+
+// Version operations
+
+// CreateVersion saves a new version of the document
+func (d *Database) CreateVersion(roomID, name, description, content, contentHash, createdBy string, isAuto bool) (*Version, error) {
+	result, err := d.db.Exec(`
+		INSERT INTO document_versions (room_id, name, description, content, content_hash, created_by, is_auto)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, roomID, name, description, content, contentHash, createdBy, isAuto)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return d.GetVersion(int(id))
+}
+
+// GetVersion retrieves a specific version by ID
+func (d *Database) GetVersion(id int) (*Version, error) {
+	row := d.db.QueryRow(`
+		SELECT id, room_id, name, description, content, content_hash, created_by, is_auto, created_at
+		FROM document_versions WHERE id = ?
+	`, id)
+
+	var v Version
+	err := row.Scan(&v.ID, &v.RoomID, &v.Name, &v.Description, &v.Content, &v.ContentHash, &v.CreatedBy, &v.IsAuto, &v.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+// ListVersions returns all versions for a room, newest first
+func (d *Database) ListVersions(roomID string, limit, offset int) ([]Version, error) {
+	rows, err := d.db.Query(`
+		SELECT id, room_id, name, description, content, content_hash, created_by, is_auto, created_at
+		FROM document_versions 
+		WHERE room_id = ?
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?
+	`, roomID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var versions []Version
+	for rows.Next() {
+		var v Version
+		if err := rows.Scan(&v.ID, &v.RoomID, &v.Name, &v.Description, &v.Content, &v.ContentHash, &v.CreatedBy, &v.IsAuto, &v.CreatedAt); err != nil {
+			return nil, err
+		}
+		versions = append(versions, v)
+	}
+	return versions, rows.Err()
+}
+
+// GetVersionCount returns the number of versions for a room
+func (d *Database) GetVersionCount(roomID string) (int, error) {
+	var count int
+	err := d.db.QueryRow("SELECT COUNT(*) FROM document_versions WHERE room_id = ?", roomID).Scan(&count)
+	return count, err
+}
+
+// GetLatestVersion returns the most recent version for a room
+func (d *Database) GetLatestVersion(roomID string) (*Version, error) {
+	row := d.db.QueryRow(`
+		SELECT id, room_id, name, description, content, content_hash, created_by, is_auto, created_at
+		FROM document_versions 
+		WHERE room_id = ?
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, roomID)
+
+	var v Version
+	err := row.Scan(&v.ID, &v.RoomID, &v.Name, &v.Description, &v.Content, &v.ContentHash, &v.CreatedBy, &v.IsAuto, &v.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+// DeleteVersion removes a version by ID
+func (d *Database) DeleteVersion(id int) error {
+	_, err := d.db.Exec("DELETE FROM document_versions WHERE id = ?", id)
+	return err
+}
+
+// DeleteOldAutoVersions removes old auto-saved versions, keeping the most recent N
+func (d *Database) DeleteOldAutoVersions(roomID string, keepCount int) error {
+	_, err := d.db.Exec(`
+		DELETE FROM document_versions 
+		WHERE room_id = ? AND is_auto = TRUE AND id NOT IN (
+			SELECT id FROM document_versions 
+			WHERE room_id = ? AND is_auto = TRUE
+			ORDER BY created_at DESC 
 			LIMIT ?
 		)
 	`, roomID, roomID, keepCount)
