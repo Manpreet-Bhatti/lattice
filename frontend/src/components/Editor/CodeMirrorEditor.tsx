@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -38,126 +44,198 @@ import { latticeThemeExtension } from "./theme";
 import { getLanguageSupport, LanguageId } from "./languages";
 import styles from "./CodeMirrorEditor.module.css";
 
+export interface EditorRef {
+  getContent: () => string;
+  getCursorPosition: () => number;
+  getSelection: () => { from: number; to: number; text: string } | null;
+  insertAtCursor: (text: string) => void;
+  replaceSelection: (text: string) => void;
+  focus: () => void;
+}
+
 interface CodeMirrorEditorProps {
   yText: Y.Text;
   awareness: Awareness;
   language?: LanguageId;
   readOnly?: boolean;
   placeholder?: string;
+  onAIComplete?: () => void;
 }
 
-export function CodeMirrorEditor({
-  yText,
-  awareness,
-  language = "typescript",
-  readOnly = false,
-  placeholder = "// Start typing...",
-}: CodeMirrorEditorProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<EditorView | null>(null);
-  const [currentLanguage, setCurrentLanguage] = useState<LanguageId>(language);
+export const CodeMirrorEditor = forwardRef<EditorRef, CodeMirrorEditorProps>(
+  function CodeMirrorEditor(
+    {
+      yText,
+      awareness,
+      language = "typescript",
+      readOnly = false,
+      placeholder = "// Start typing...",
+      onAIComplete,
+    },
+    ref
+  ) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const editorRef = useRef<EditorView | null>(null);
+    const [currentLanguage, setCurrentLanguage] =
+      useState<LanguageId>(language);
 
-  useEffect(() => {
-    if (language !== currentLanguage) {
-      setCurrentLanguage(language);
-    }
-  }, [language, currentLanguage]);
-
-  useEffect(() => {
-    if (!containerRef.current || !yText) return;
-
-    if (editorRef.current) {
-      editorRef.current.destroy();
-    }
-
-    const awarenessAdapter = {
-      doc: awareness.doc,
-      clientID: awareness.clientID,
-      states: awareness.states,
-      getLocalState: () => awareness.getLocalState(),
-      setLocalState: (state: unknown) =>
-        awareness.setLocalState(
-          state as Parameters<typeof awareness.setLocalState>[0]
-        ),
-      setLocalStateField: (field: string, value: unknown) => {
-        const state = awareness.getLocalState() || {};
-        awareness.setLocalState({ ...state, [field]: value });
+    // Expose editor methods via ref
+    useImperativeHandle(ref, () => ({
+      getContent: () => {
+        return editorRef.current?.state.doc.toString() || "";
       },
-      getStates: () => awareness.getStates(),
-      on: (event: string, callback: (...args: unknown[]) => void) =>
-        awareness.on(event, callback),
-      off: (event: string, callback: (...args: unknown[]) => void) =>
-        awareness.off(event, callback),
-    };
+      getCursorPosition: () => {
+        const view = editorRef.current;
+        if (!view) return 0;
+        return view.state.selection.main.head;
+      },
+      getSelection: () => {
+        const view = editorRef.current;
+        if (!view) return null;
+        const { from, to } = view.state.selection.main;
+        if (from === to) return null;
+        return {
+          from,
+          to,
+          text: view.state.doc.sliceString(from, to),
+        };
+      },
+      insertAtCursor: (text: string) => {
+        const view = editorRef.current;
+        if (!view) return;
+        const pos = view.state.selection.main.head;
+        view.dispatch({
+          changes: { from: pos, insert: text },
+          selection: { anchor: pos + text.length },
+        });
+      },
+      replaceSelection: (text: string) => {
+        const view = editorRef.current;
+        if (!view) return;
+        const { from, to } = view.state.selection.main;
+        view.dispatch({
+          changes: { from, to, insert: text },
+          selection: { anchor: from + text.length },
+        });
+      },
+      focus: () => {
+        editorRef.current?.focus();
+      },
+    }));
 
-    const extensions = [
-      lineNumbers(),
-      highlightActiveLineGutter(),
-      highlightSpecialChars(),
-      history(),
-      foldGutter(),
-      drawSelection(),
-      dropCursor(),
-      EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion(),
-      rectangularSelection(),
-      crosshairCursor(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
+    useEffect(() => {
+      if (language !== currentLanguage) {
+        setCurrentLanguage(language);
+      }
+    }, [language, currentLanguage]);
 
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...defaultKeymap,
-        ...searchKeymap,
-        ...historyKeymap,
-        ...foldKeymap,
-        ...completionKeymap,
-        indentWithTab,
-      ]),
+    useEffect(() => {
+      if (!containerRef.current || !yText) return;
 
-      latticeThemeExtension,
+      if (editorRef.current) {
+        editorRef.current.destroy();
+      }
 
-      getLanguageSupport(currentLanguage),
+      const awarenessAdapter = {
+        doc: awareness.doc,
+        clientID: awareness.clientID,
+        states: awareness.states,
+        getLocalState: () => awareness.getLocalState(),
+        setLocalState: (state: unknown) =>
+          awareness.setLocalState(
+            state as Parameters<typeof awareness.setLocalState>[0]
+          ),
+        setLocalStateField: (field: string, value: unknown) => {
+          const state = awareness.getLocalState() || {};
+          awareness.setLocalState({ ...state, [field]: value });
+        },
+        getStates: () => awareness.getStates(),
+        on: (event: string, callback: (...args: unknown[]) => void) =>
+          awareness.on(event, callback),
+        off: (event: string, callback: (...args: unknown[]) => void) =>
+          awareness.off(event, callback),
+      };
 
-      yCollab(yText, awarenessAdapter),
+      const extensions = [
+        lineNumbers(),
+        highlightActiveLineGutter(),
+        highlightSpecialChars(),
+        history(),
+        foldGutter(),
+        drawSelection(),
+        dropCursor(),
+        EditorState.allowMultipleSelections.of(true),
+        indentOnInput(),
+        bracketMatching(),
+        closeBrackets(),
+        autocompletion(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightActiveLine(),
+        highlightSelectionMatches(),
 
-      EditorState.readOnly.of(readOnly),
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          ...foldKeymap,
+          ...completionKeymap,
+          indentWithTab,
+          // AI completion shortcut (Ctrl+Space when no autocomplete)
+          {
+            key: "Ctrl-Space",
+            run: () => {
+              if (onAIComplete) {
+                onAIComplete();
+                return true;
+              }
+              return false;
+            },
+          },
+        ]),
 
-      EditorView.updateListener.of(() => {}),
-    ];
+        latticeThemeExtension,
 
-    if (placeholder && yText.length === 0) {
-      extensions.push(
-        EditorView.contentAttributes.of({ "data-placeholder": placeholder })
-      );
-    }
+        getLanguageSupport(currentLanguage),
 
-    const state = EditorState.create({
-      doc: yText.toString(),
-      extensions,
-    });
+        yCollab(yText, awarenessAdapter),
 
-    const view = new EditorView({
-      state,
-      parent: containerRef.current,
-    });
+        EditorState.readOnly.of(readOnly),
 
-    editorRef.current = view;
+        EditorView.updateListener.of(() => {}),
+      ];
 
-    view.focus();
+      if (placeholder && yText.length === 0) {
+        extensions.push(
+          EditorView.contentAttributes.of({ "data-placeholder": placeholder })
+        );
+      }
 
-    return () => {
-      view.destroy();
-      editorRef.current = null;
-    };
-  }, [yText, awareness, currentLanguage, readOnly, placeholder]);
+      const state = EditorState.create({
+        doc: yText.toString(),
+        extensions,
+      });
 
-  return (
-    <div className={styles.editorWrapper}>
-      <div ref={containerRef} className={styles.editorContainer} />
-    </div>
-  );
-}
+      const view = new EditorView({
+        state,
+        parent: containerRef.current,
+      });
+
+      editorRef.current = view;
+
+      view.focus();
+
+      return () => {
+        view.destroy();
+        editorRef.current = null;
+      };
+    }, [yText, awareness, currentLanguage, readOnly, placeholder]);
+
+    return (
+      <div className={styles.editorWrapper}>
+        <div ref={containerRef} className={styles.editorContainer} />
+      </div>
+    );
+  }
+);

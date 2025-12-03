@@ -1,4 +1,5 @@
 export { CodeMirrorEditor } from "./CodeMirrorEditor";
+export type { EditorRef } from "./CodeMirrorEditor";
 export { Editor } from "./Editor";
 export {
   languages,
